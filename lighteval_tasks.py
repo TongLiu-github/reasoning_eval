@@ -15,6 +15,7 @@
 """Custom evaluation tasks for LightEval."""
 
 import random
+import os
 
 from lighteval.metrics.dynamic_metrics import (
     ExprExtractionConfig,
@@ -36,6 +37,54 @@ Solve the following math problem efficiently and clearly.  The last line of your
 
 {Question}
 """.strip()
+
+MATH_QUERY_TEMPLATE_verl = """
+{Question} Let's think step by step and output the final answer within $\\boxed{{ANSWER}}$.
+""".strip()
+
+MATH_QUERY_TEMPLATE_verl_reverse = """
+Let's think step by step and output the final answer within $\\boxed{{ANSWER}}$. {Question}
+""".strip()
+
+MATH_QUERY_TEMPLATE_sober = """
+{Question} Solve the following math problem efficiently and clearly.  The last line of your response should be of the following format: 'Therefore, the final answer is: $\\boxed{{ANSWER}}$. I hope it is correct' (without quotes) where ANSWER is just the final number or expression that solves the problem. Think step by step before answering.
+""".strip()
+
+MATH_QUERY_TEMPLATE_sober_reverse = """
+Solve the following math problem efficiently and clearly.  The last line of your response should be of the following format: 'Therefore, the final answer is: $\\boxed{{ANSWER}}$. I hope it is correct' (without quotes) where ANSWER is just the final number or expression that solves the problem. Think step by step before answering. {Question} 
+""".strip()
+
+MATH_QUERY_TEMPLATE_shorten = """
+{Question} Please output the final answer within $\\boxed{{ANSWER}}$.
+""".strip()
+
+MATH_QUERY_TEMPLATE_mathtral = """
+please reason step by step, and put your final answer within $\\boxed{{ANSWER}}$. 
+{Question}
+""".strip()
+
+MATH_QUERY_TEMPLATE_mathtral2 = """
+{Question} 
+please reason step by step, and put your final answer within $\\boxed{{ANSWER}}$. 
+""".strip()
+
+MATH_QUERY_TEMPLATE_structured = """Let's solve this problem carefully.
+We will:
+1. Identify what is being asked.
+2. Write down known information.
+3. Solve the problem step-by-step.
+4. Check our answer at the end.
+5. Output the final answer within $\\boxed{{ANSWER}}$.
+
+Question: {Question} 
+""".strip()
+
+MATH_QUERY_TEMPLATE_qwen_default = """{Question}""".strip()
+
+MATH_QUERY_TEMPLATE_spurious = """
+Ut purus elit, vestibulum ut, placerat ac, adipiscing vitae, felis. Curabitur dictum gravida mauris. Nam arcu libero, nonummy eget, consectetuer id, vulputate a, magna. Donec vehicula augue eu neque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris ut leo. Cras viverra metus rhoncus sem. Nulla et lectus vestibulum urna fringilla ultrices. Phasellus eu tellus sit amet tortor gravida placerat.\n\n{Question}
+""".strip()
+
 
 # Prompt template from simple-evals: https://github.com/openai/simple-evals/blob/83ed7640a7d9cd26849bcb3340125002ef14abbe/common.py#L14
 GPQA_QUERY_TEMPLATE = """
@@ -77,46 +126,71 @@ gpqa_metric = multilingual_extractive_match_metric(
 )
 
 
-def math_prompt_fn(line, task_name: str = None):
+def get_math_template(prompt_type: str = "default") -> str:
+    """Get the appropriate math template based on prompt_type."""
+    # Get prompt_type from environment variable if not provided
+    if prompt_type == "default":
+        prompt_type = os.environ.get("LIGHTEVAL_PROMPT_TYPE", "default")
+    
+    templates = {
+        "default": MATH_QUERY_TEMPLATE,
+        "verl": MATH_QUERY_TEMPLATE_verl,
+        "sober": MATH_QUERY_TEMPLATE_sober,
+        "shorten": MATH_QUERY_TEMPLATE_shorten,
+        "mathtral": MATH_QUERY_TEMPLATE_mathtral,
+        "mathtral2": MATH_QUERY_TEMPLATE_mathtral2,
+        "sober_reverse": MATH_QUERY_TEMPLATE_sober_reverse,
+        "verl_reverse": MATH_QUERY_TEMPLATE_verl_reverse,
+        "structured": MATH_QUERY_TEMPLATE_structured,
+        "spurious": MATH_QUERY_TEMPLATE_spurious,
+
+    }
+
+    template = templates.get(prompt_type, MATH_QUERY_TEMPLATE)
+    # print("Using math prompt type:", prompt_type)
+    return template
+
+
+def math_prompt_fn(line, task_name: str = None, prompt_type: str = "default"):
     return Doc(
         task_name=task_name,
-        query=MATH_QUERY_TEMPLATE.format(Question=line["problem"]),
+        query=get_math_template(prompt_type).format(Question=line["problem"]),
         choices=[line["solution"]],
         gold_index=0,
     )
 
 
-def aime_prompt_fn(line, task_name: str = None):
+def aime_prompt_fn(line, task_name: str = None, prompt_type: str = "default"):
     return Doc(
         task_name=task_name,
-        query=MATH_QUERY_TEMPLATE.format(Question=line["problem"]),
+        query=get_math_template(prompt_type).format(Question=line["problem"]),
         choices=[line["answer"]],
         gold_index=0,
     )
 
 
-def amc_prompt_fn(line, task_name: str = None):
+def amc_prompt_fn(line, task_name: str = None, prompt_type: str = "default"):
     return Doc(
         task_name=task_name,
-        query=MATH_QUERY_TEMPLATE.format(Question=line["problem"]),
+        query=get_math_template(prompt_type).format(Question=line["problem"]),
         choices=[line["answer"]],
         gold_index=0,
     )
 
 
-def minerva_prompt_fn(line, task_name: str = None):
+def minerva_prompt_fn(line, task_name: str = None, prompt_type: str = "default"):
     return Doc(
         task_name=task_name,
-        query=MATH_QUERY_TEMPLATE.format(Question=line["problem"]),
+        query=get_math_template(prompt_type).format(Question=line["problem"]),
         choices=[line["solution"]],
         gold_index=0,
     )
 
 
-def olympiadbench_prompt_fn(line, task_name: str = None):
+def olympiadbench_prompt_fn(line, task_name: str = None, prompt_type: str = "default"):
     return Doc(
         task_name=task_name,
-        query=MATH_QUERY_TEMPLATE.format(Question=line["question"]),
+        query=get_math_template(prompt_type).format(Question=line["question"]),
         choices=[line["answer"]],
         gold_index=0,
     )

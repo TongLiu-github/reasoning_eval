@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument("--use_chat_template", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--launcher_type", type=str, default="VLLM")
+    parser.add_argument("--prompt_type", type=str, default="default")
     return parser.parse_args()
 
 
@@ -97,6 +98,9 @@ def main():
         load_responses_from_details_date_id=None,
     )
 
+    # Set the prompt_type in the environment for the tasks to use
+    os.environ["LIGHTEVAL_PROMPT_TYPE"] = args.prompt_type if args.prompt_type else "default"
+
     model_config = VLLMModelConfig(
         pretrained=args.model,
         dtype=args.dtype,
@@ -126,6 +130,44 @@ def main():
     pipeline.show_results()
     results = pipeline.get_results()
     pipeline.save_and_push_results()
+
+    # Debug prints to check results structure
+    print("\nDebug: Results structure:")
+    print("Keys in results:", results.keys())
+    print("Keys in results['results']:", results["results"].keys())
+    
+    # # Get the task results
+    # task_results = results["results"]["custom:math_500:0"]
+    # if isinstance(task_results, dict):
+    #     print("\nSample result for math_500:")
+    #     print("Keys in task_results:", task_results.keys())
+    #     if task_results:
+    #         sample_doc = next(iter(task_results.values()))
+    #         print("Sample doc content:", json.dumps(sample_doc, indent=2))
+
+    # # Save detailed results to jsonl file
+    # output_jsonl = os.path.join(output_dir, folder, f"{fname}.jsonl")
+    # with fs.open(output_jsonl, "w") as f:
+    #     # Get the task results from pipeline
+    #     task_name = "custom:math_500:0"
+    #     if hasattr(pipeline, "tasks") and task_name in pipeline.tasks:
+    #         task = pipeline.tasks[task_name]
+    #         if hasattr(task, "eval_docs"):
+    #             for doc in task.eval_docs():
+    #                 json_line = {
+    #                     "task": "math_500",
+    #                     "doc_id": doc.id if hasattr(doc, "id") else "",
+    #                     "prompt": doc.query if hasattr(doc, "query") else "",
+    #                     "response": doc.response if hasattr(doc, "response") else "",
+    #                     "gold": doc.choices[doc.gold_index] if hasattr(doc, "choices") and hasattr(doc, "gold_index") else "",
+    #                     "score": task_results.get("extractive_match", 0) if isinstance(task_results, dict) else 0,
+    #                     "prompt_type": args.prompt_type,
+    #                     "model": args.model,
+    #                     "temperature": args.temperature,
+    #                     "top_p": args.top_p,
+    #                     "seed": args.seed,
+    #                 }
+    #                 f.write(json.dumps(json_line) + "\n")
 
     data = {
         "start_time": start.isoformat(),
